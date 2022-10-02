@@ -6,111 +6,67 @@
 using std::min;
 using std::max;
 
-static constexpr float dTheta = PI;
-float offset_z = 1.1f;
-float theta_x = 0.6f;
-float theta_y = 0.0f;
-float theta_z = 0.0f;
-Cube cube(1.0f);
-PubeScreenTransformer pst;
+#include <cmath>
 
 void Setup (CS_FrameBuffer& fb, CS_Keyboard& kb, CS_Mouse& mouse, i32 deltaTime) {
-	pst.SetWidthHeight(fb.width, fb.height);
-	texImage.LoadFromBMP("../Images/TestingTexture_512x512.bmp");
+	;
 }
+
+float a = 320.0f;
+float b = 320.0f;
+float r = 100.0f;
+
+float lineYForControl = 520.0f;
+float lineY = 520.0f;
+float disLineCir = 50.0f;
 
 void Update(CS_FrameBuffer& fb, CS_Keyboard& kb, CS_Mouse& mouse, i32 deltaTime) {
 
-	// Delta-Time Calculation
-	const float dt = (float)deltaTime / 1000.0f;
-	
-	// Keyboard Control
-	if (kb.IsKeyPressed('Q'))
-	{
-		theta_x = theta_x + dTheta * dt;
+	if (kb.IsKeyPressed('W')) {
+		lineYForControl -= 0.1f;
 	}
-	if (kb.IsKeyPressed('W'))
-	{
-		theta_y = theta_y + dTheta * dt;
-	}
-	if (kb.IsKeyPressed('E'))
-	{
-		theta_z = theta_z + dTheta * dt;
-	}
-	if (kb.IsKeyPressed('A'))
-	{
-		theta_x = theta_x - dTheta * dt;
-	}
-	if (kb.IsKeyPressed('S'))
-	{
-		theta_y = theta_y - dTheta * dt;
-	}
-	if (kb.IsKeyPressed('D'))
-	{
-		theta_z = theta_z - dTheta * dt;
-	}
-	if (kb.IsKeyPressed('R'))
-	{
-		offset_z += 2.0f * dt;
-	}
-	if (kb.IsKeyPressed('F'))
-	{
-		offset_z -= 2.0f * dt;
+	else if (kb.IsKeyPressed('S')) {
+		lineYForControl += 0.1f;
 	}
 
-	// 3D Transform
+	lineY = (int)lineYForControl;
 
-	auto lines = cube.GetLines();
-	auto triangles = cube.GetTriangles();
+	for (int y = 0; y < fb.height; y++) {
 
-	Mat3 rotation =
-		Mat3::RotationX(theta_x) *
-		Mat3::RotationY(theta_y) *
-		Mat3::RotationZ(theta_z);
+		if (y == lineY) {
+			for (int x = 0; x < fb.width; x++) {
+				fb.PutPixel(x, y, 255, 255, 255);
+			}
+		}
 
-	for (auto& v : triangles.vertices) {
-		v.pos *= rotation;
-		v.pos += Vec3(0.0f, 0.0f, offset_z);
-		pst.Transform(v);
-	}
+		for (int x = 0; x < fb.width; x++) {
 
-	// Draw Indicies
-	Rectangle screenRect = { 0, fb.width - 1, 0, fb.height - 1 };
-	for (int i = 0; i < lines.indices.size(); i += 2) {
-		LineClip(
-			fb, &screenRect,
+			float x_a = x - a;
+			float y_b = y - b;
 
-			(int)triangles.vertices[lines.indices[i + 0]].pos.x,  // x0
-			(int)triangles.vertices[lines.indices[i + 0]].pos.y,  // x1
+			float d = x_a * x_a + y_b * y_b;
+			float rsq = r * r;
+			float determiner = abs(d - rsq);
 
-			(int)triangles.vertices[lines.indices[i + 1]].pos.x,  // y0
-			(int)triangles.vertices[lines.indices[i + 1]].pos.y,  // y1
+			if ( determiner < 100.0f ) {
+				// Inside the circle
+				fb.PutPixel(x, y, 255, 255, 255);
 
-			255, 255, 255  // rgb
-		);
-	}
+				float newDeterminer = abs(y - lineY);
 
-	// Draw Verticies
-	for (int i = 0; i < triangles.vertices.size(); i++) {
-		int x = (int)triangles.vertices[i].pos.x;
-		int y = (int)triangles.vertices[i].pos.y;
+				if (
+					newDeterminer < disLineCir + 1.0f &&
+					newDeterminer > disLineCir - 1.0f
+				) {
 
-		fb.PutPixel(
-			min( fb.width - 1,  max( 0, x )),
-			min( fb.height - 1, max( 0, y )),
-			255,
-			0,
-			0
-		);
-	}
+					int yStart = min(y, (int)lineY);
+					int yEnd   = max(y, (int)lineY);
 
-	// Draw Triangles
-	for (int i = 0; i < triangles.indices.size(); i += 3) {
-		DrawTriangle(
-			fb,
-			triangles.vertices[triangles.indices[i + 0]],
-			triangles.vertices[triangles.indices[i + 1]],
-			triangles.vertices[triangles.indices[i + 2]]
-		);
+					for (int yPrime = yStart; yPrime < yEnd; yPrime++) {
+						fb.PutPixel(x, yPrime, 255, 0, 0);
+					}
+				}
+			}
+		}
 	}
 }
